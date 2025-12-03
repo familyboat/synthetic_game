@@ -1,6 +1,6 @@
-import { ColliderDesc, type World } from "@dimforge/rapier2d-compat";
 import { Graphics, type Container, type Rectangle } from "pixi.js";
 import { toPhysics } from "./utils";
+import { Box, type World } from "planck";
 
 /**
  * 强，长方形，静态刚体；
@@ -51,15 +51,21 @@ export class Wall {
   }
 
   private initPhysics() {
-    const groundColliderDesc = ColliderDesc.cuboid(
-      toPhysics(this.widthInRender / 2),
-      toPhysics(this.heightInRender / 2),
-    )
-      .setFriction(0)
-      .setRestitution(0);
-    this.world.createCollider(groundColliderDesc).setTranslation({
-      x: toPhysics(this.xInRender + this.widthInRender / 2),
-      y: toPhysics(this.yInRender + this.heightInRender / 2),
+    const rigidBody = this.world.createBody({
+      type: "static",
+      position: {
+        x: toPhysics(this.xInRender + this.widthInRender / 2),
+        y: toPhysics(this.yInRender + this.heightInRender / 2),
+      },
+    });
+
+    rigidBody.createFixture({
+      shape: new Box(
+        toPhysics(this.widthInRender / 2),
+        toPhysics(this.heightInRender / 2),
+      ),
+      friction: 0,
+      restitution: 0,
     });
   }
 }

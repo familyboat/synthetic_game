@@ -1,13 +1,12 @@
-import RAPIER, { EventQueue } from "@dimforge/rapier2d-compat";
 import { Application } from "pixi.js";
 import { Ground } from "./ground";
 import { BallManager } from "./ball";
 import { Wall } from "./wall";
+import { World } from "planck";
 
 export async function runSyntheticBallGame() {
   const gravity = { x: 0.0, y: 9.81 };
-  const world = new RAPIER.World(gravity);
-  const eventqueue = new EventQueue(true);
+  const world = new World(gravity);
 
   const app = new Application();
   await app.init({
@@ -43,31 +42,33 @@ export async function runSyntheticBallGame() {
     makeBall();
   }, 1000);
 
-  app.ticker.add(() => {
-    world.step(eventqueue);
-    eventqueue.drainCollisionEvents((handle1, handle2) => {
-      const aCollider = world.getCollider(handle1);
-      const bCollider = world.getCollider(handle2);
-      const aUserData = aCollider?.data;
-      const bUserData = bCollider?.data;
-      if (aUserData?.isBall && bUserData?.isBall) {
-        const aBall = BallManager.getBall(aUserData.uuid);
-        const bBall = BallManager.getBall(bUserData.uuid);
+  world.on("begin-contact", (contact) => {
+    const aFixture = contact.getFixtureA();
+    const bFixture = contact.getFixtureB();
+    const aUserData = aFixture.data;
+    const bUserData = bFixture.data;
 
-        if (
-          aBall &&
-          bBall &&
-          aBall.isActive &&
-          bBall.isActive &&
-          aBall.canSynthetic(bBall)
-        ) {
-          aBall.makeDead();
-          bBall.makeDead();
+    if (aUserData?.isBall && bUserData?.isBall) {
+      const aBall = BallManager.getBall(aUserData.uuid);
+      const bBall = BallManager.getBall(bUserData.uuid);
 
-          aBall.translate(bBall);
-        }
+      if (
+        aBall &&
+        bBall &&
+        aBall.isActive &&
+        bBall.isActive &&
+        aBall.canSynthetic(bBall)
+      ) {
+        aBall.makeDead();
+        bBall.makeDead();
+
+        aBall.translate(bBall);
       }
-    });
+    }
+  });
+
+  app.ticker.add(() => {
+    world.step(1 / 60, 10, 8);
 
     BallManager.update();
     ground.update();

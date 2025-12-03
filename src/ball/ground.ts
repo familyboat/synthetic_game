@@ -1,11 +1,6 @@
-import {
-  ColliderDesc,
-  RigidBody,
-  RigidBodyDesc,
-  type World,
-} from "@dimforge/rapier2d-compat";
 import { Graphics, type Container, type Rectangle } from "pixi.js";
 import { toPhysics, toRender } from "./utils";
+import { Box, type Body, type World } from "planck";
 
 /**
  * 草地，长方形，静态刚体；
@@ -21,7 +16,7 @@ export class Ground {
   private world: World;
   private parent: Container;
   private ground?: Container;
-  private groundRigidBody?: RigidBody;
+  private groundRigidBody?: Body;
 
   constructor(screen: Rectangle, world: World, parent: Container) {
     this.widthInRender = screen.width;
@@ -57,28 +52,28 @@ export class Ground {
   }
 
   private initPhysics() {
-    const rigidBodyDesc = RigidBodyDesc.fixed()
-      .setTranslation(
-        toPhysics(this.xInRender + this.widthInRender / 2),
-        toPhysics(this.yInRender + this.heightInRender / 2),
-      )
-      .setGravityScale(0);
-    const rigidBody = this.world.createRigidBody(rigidBodyDesc);
+    const groundBody = this.world.createBody({
+      type: "static",
+      position: {
+        x: toPhysics(this.xInRender + this.widthInRender / 2),
+        y: toPhysics(this.yInRender + this.heightInRender / 2),
+      },
+    });
+    this.groundRigidBody = groundBody;
 
-    this.groundRigidBody = rigidBody;
-
-    const groundColliderDesc = ColliderDesc.cuboid(
-      toPhysics(this.widthInRender / 2),
-      toPhysics(this.heightInRender / 2),
-    )
-      .setFriction(0)
-      .setRestitution(0);
-    this.world.createCollider(groundColliderDesc, rigidBody);
+    groundBody.createFixture({
+      shape: new Box(
+        toPhysics(this.widthInRender / 2),
+        toPhysics(this.heightInRender / 2),
+      ),
+      friction: 0,
+      restitution: 0,
+    });
   }
 
   update() {
     if (this.groundRigidBody && this.ground) {
-      const pos = this.groundRigidBody.translation();
+      const pos = this.groundRigidBody.getPosition();
       this.xInRender = toRender(pos.x) - this.widthInRender / 2;
       this.yInRender = toRender(pos.y) - this.heightInRender / 2;
       this.updateRender();
