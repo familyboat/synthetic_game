@@ -1,25 +1,15 @@
-import {
-  ActiveEvents,
-  Collider,
-  ColliderDesc,
-  RigidBody,
-  RigidBodyDesc,
-  RigidBodyType,
-  Vector2,
-  type Vector,
-  type World,
-} from "@dimforge/rapier2d-compat";
 import { Graphics, type Container, type Rectangle } from "pixi.js";
 import { randomChoice, toPhysics, toRender } from "./utils";
 import gsap from "gsap";
 import { nanoid } from "nanoid";
+import { Body, vec2, type Vec2, type World, Circle } from "p2-es";
 
-declare module "@dimforge/rapier2d-compat" {
-  interface Collider {
-    data: {
-      uuid: string;
-      isBall: true;
-    };
+declare module 'p2-es' {
+  interface Shape {
+    data?: {
+      uuid: string,
+      isBall: true
+    }
   }
 }
 
@@ -49,8 +39,8 @@ function maxBallLevel(): BallLevel {
 }
 
 export class Ball {
-  private static activeCollisionGroups = 0x00010001;
-  private static deadCollisionGroups = 0x00020001;
+  private static activeCollisionGroups = 0x0001;
+  private static deadCollisionGroups = 0x0002;
   private static MaxBallLevel: BallLevel = maxBallLevel();
 
   private name = "ball";
@@ -59,9 +49,9 @@ export class Ball {
   private parent: Container;
   private xInRender: number;
   private yInRender: number;
-  private ballRigidBody: RigidBody | null = null;
+  private ballRigidBody: Body | null = null;
   private ball: Graphics | null = null;
-  private ballCollider: Collider | null = null;
+  private ballCollider: Circle | null = null;
   private ballLevel: BallLevel;
   private status: "active" | "dead" | "removed" = "active";
 
@@ -111,26 +101,31 @@ export class Ball {
   }
 
   private initPhysics() {
-    const ballColliderDesc = ColliderDesc.ball(toPhysics(this.radiusInRender))
-      .setFriction(0)
-      .setRestitution(0)
-      .setCollisionGroups(Ball.activeCollisionGroups)
-      .setActiveEvents(ActiveEvents.COLLISION_EVENTS);
+    const ballShape = new Circle({
+      radius: toPhysics(this.radiusInRender),
+      collisionGroup: Ball.activeCollisionGroups,
+      collisionMask: Ball.activeCollisionGroups,
+    })
+    this.ballCollider = ballShape
 
     const uuid = nanoid();
 
-    const ballRigidBodyDesc = RigidBodyDesc.dynamic()
-      .setTranslation(toPhysics(this.xInRender), toPhysics(this.yInRender))
-      .setCcdEnabled(true)
-      .setLinearDamping(0.5);
-    const ballRigidBody = this.world.createRigidBody(ballRigidBodyDesc);
+    const ballRigidBody = new Body({
+      type: Body.DYNAMIC,
+      position: [
+        toPhysics(this.xInRender),
+        toPhysics(this.yInRender)
+      ],
+      damping: 0.5,
+      ccdIterations: 10
+    })
 
-    this.ballRigidBody = ballRigidBody;
+    ballRigidBody.addShape(ballShape)
+    this.ballRigidBody = ballRigidBody
 
-    this.ballCollider = this.world.createCollider(
-      ballColliderDesc,
-      ballRigidBody,
-    );
+    this.world.addBody(ballRigidBody)
+    ballRigidBody.setDensity(1)
+
     this.ballCollider.data = {
       uuid,
       isBall: true,
@@ -144,9 +139,9 @@ export class Ball {
         this.status !== "removed",
     );
     if (this.ballRigidBody && this.ball) {
-      const posInPhysics = this.ballRigidBody.translation();
-      this.xInRender = toRender(posInPhysics.x);
-      this.yInRender = toRender(posInPhysics.y);
+      const posInPhysics = this.ballRigidBody.position;
+      this.xInRender = toRender(posInPhysics[0]);
+      this.yInRender = toRender(posInPhysics[1]);
       this.updateInRender();
     }
   }
@@ -161,11 +156,8 @@ export class Ball {
         this.isActive,
     );
     if (this.ballCollider && this.ballRigidBody) {
-      this.ballCollider.setCollisionGroups(Ball.deadCollisionGroups);
-      this.ballRigidBody.setBodyType(
-        RigidBodyType.KinematicPositionBased,
-        true,
-      );
+      this.ballCollider.collisionGroup = (Ball.deadCollisionGroups);
+      this.ballRigidBody.type = Body.KINEMATIC
       this.status = "dead";
     }
   }
@@ -182,19 +174,19 @@ export class Ball {
         this.status === "dead",
     );
     if (this.ballRigidBody && other.ballRigidBody) {
-      const aPos = this.ballRigidBody.translation();
-      const bPos = other.ballRigidBody.translation();
-      const cPos = new Vector2((aPos.x + bPos.x) / 2, (aPos.y + bPos.y) / 2);
+      const aPos = this.ballRigidBody.position;
+      const bPos = other.ballRigidBody.position;
+      const cPos = vec2.fromValues((aPos[0] + bPos[0]) / 2, (aPos[1] + bPos[1]) / 2);
 
       const { promise, resolve } = Promise.withResolvers();
       let countOfCompleted = 0;
 
       const self = this;
       gsap.to(bPos, {
-        x: cPos.x,
-        y: cPos.y,
+        0: cPos[0],
+        1: cPos[1],
         onUpdate() {
-          other.ballRigidBody?.setTranslation(bPos, false);
+          other.ballRigidBody!.position = bPos;
         },
         onComplete() {
           other.remove();
@@ -207,10 +199,10 @@ export class Ball {
         },
       });
       gsap.to(aPos, {
-        x: cPos.x,
-        y: cPos.y,
+        0: cPos[0],
+        1: cPos[1],
         onUpdate() {
-          self.ballRigidBody?.setTranslation(aPos, false);
+          self.ballRigidBody!.position = aPos;
         },
         onComplete() {
           self.remove();
@@ -254,7 +246,7 @@ export class Ball {
     if (this.ball && this.ballRigidBody) {
       this.status = "removed";
       this.parent.removeChild(this.ball);
-      this.world.removeRigidBody(this.ballRigidBody);
+      this.world.removeBody(this.ballRigidBody);
     }
   }
 
@@ -293,14 +285,14 @@ export class BallManager {
     world: World,
     parent: Container,
     level: BallLevel,
-    pos: Vector,
+    pos: Vec2,
   ) {
     const newBall = new Ball(
       world,
       parent,
       level,
-      toRender(pos.x),
-      toRender(pos.y),
+      toRender(pos[0]),
+      toRender(pos[1]),
     );
     newBall.init();
     BallManager.balls.set(newBall.data!.uuid, newBall);

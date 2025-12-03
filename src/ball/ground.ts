@@ -1,11 +1,6 @@
-import {
-  ColliderDesc,
-  RigidBody,
-  RigidBodyDesc,
-  type World,
-} from "@dimforge/rapier2d-compat";
 import { Graphics, type Container, type Rectangle } from "pixi.js";
 import { toPhysics, toRender } from "./utils";
+import { Body, Box, type World } from "p2-es";
 
 /**
  * 草地，长方形，静态刚体；
@@ -21,7 +16,7 @@ export class Ground {
   private world: World;
   private parent: Container;
   private ground?: Container;
-  private groundRigidBody?: RigidBody;
+  private groundRigidBody?: Body;
 
   constructor(screen: Rectangle, world: World, parent: Container) {
     this.widthInRender = screen.width;
@@ -57,30 +52,29 @@ export class Ground {
   }
 
   private initPhysics() {
-    const rigidBodyDesc = RigidBodyDesc.fixed()
-      .setTranslation(
+    const rigidBody = new Body({
+      type: Body.STATIC,
+      position: [
         toPhysics(this.xInRender + this.widthInRender / 2),
         toPhysics(this.yInRender + this.heightInRender / 2),
-      )
-      .setGravityScale(0);
-    const rigidBody = this.world.createRigidBody(rigidBodyDesc);
+      ],
+      mass: 0,
+    })
+    const shape = new Box({
+      width: toPhysics(this.widthInRender),
+      height: toPhysics(this.heightInRender),
+    })
+    rigidBody.addShape(shape)
 
-    this.groundRigidBody = rigidBody;
-
-    const groundColliderDesc = ColliderDesc.cuboid(
-      toPhysics(this.widthInRender / 2),
-      toPhysics(this.heightInRender / 2),
-    )
-      .setFriction(0)
-      .setRestitution(0);
-    this.world.createCollider(groundColliderDesc, rigidBody);
+    this.world.addBody(rigidBody)
+    this.groundRigidBody = rigidBody
   }
 
   update() {
     if (this.groundRigidBody && this.ground) {
-      const pos = this.groundRigidBody.translation();
-      this.xInRender = toRender(pos.x) - this.widthInRender / 2;
-      this.yInRender = toRender(pos.y) - this.heightInRender / 2;
+      const pos = this.groundRigidBody.position;
+      this.xInRender = toRender(pos[0]) - this.widthInRender / 2;
+      this.yInRender = toRender(pos[1]) - this.heightInRender / 2;
       this.updateRender();
     }
   }
