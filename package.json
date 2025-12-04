@@ -16,7 +16,7 @@
     "@dimforge/rapier2d-compat": "^0.19.3",
     "gsap": "^3.13.0",
     "nanoid": "^5.1.6",
-    "phaser-box2d": "github:familyboat/phaser-box2d",
+    "phaser-box2d": "^1.1.0",
     "pixi-viewport": "^6.0.3",
     "pixi.js": "^8.14.3"
   }
