@@ -59,10 +59,14 @@ export async function runSyntheticBallGame() {
         bBall.isActive &&
         aBall.canSynthetic(bBall)
       ) {
-        aBall.makeDead();
-        bBall.makeDead();
+        aBall.makeStatusToDead();
+        bBall.makeStatusToDead();
+        queueMicrotask(() => {
+          aBall.makeDead();
+          bBall.makeDead();
 
-        aBall.translate(bBall);
+          aBall.translate(bBall);
+        });
       }
     }
   });

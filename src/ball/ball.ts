@@ -146,16 +146,19 @@ export class Ball {
    * 相同等级的小球碰撞后，修改球的类型，让其不再能相互碰撞，以及可以手动控制刚体的位置
    */
   makeDead() {
-    console.assert(
-      this.ballCollider !== null &&
-        this.ballRigidBody !== null &&
-        this.isActive,
-    );
+    console.assert(this.ballCollider !== null && this.ballRigidBody !== null);
     if (this.ballCollider && this.ballRigidBody) {
       this.ballCollider.setFilterCategoryBits(Ball.deadCollisionGroups);
       this.ballRigidBody.setType("kinematic");
-      this.status = "dead";
     }
+  }
+
+  /**
+   * 将状态修改为 dead
+   */
+  makeStatusToDead() {
+    console.assert(this.isActive);
+    this.status = "dead";
   }
 
   /**
