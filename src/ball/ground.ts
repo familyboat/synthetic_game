@@ -1,11 +1,17 @@
-import {
-  ColliderDesc,
-  RigidBody,
-  RigidBodyDesc,
-  type World,
-} from "@dimforge/rapier2d-compat";
 import { Graphics, type Container, type Rectangle } from "pixi.js";
 import { toPhysics, toRender } from "./utils";
+import {
+  b2Body_GetPosition,
+  b2BodyType,
+  b2CreateBody,
+  b2CreatePolygonShape,
+  b2DefaultBodyDef,
+  b2DefaultShapeDef,
+  b2MakeBox,
+  b2Vec2,
+  type b2BodyId,
+  type b2WorldId,
+} from "phaser-box2d";
 
 /**
  * 草地，长方形，静态刚体；
@@ -18,12 +24,12 @@ export class Ground {
   private heightInRender: number;
   private xInRender: number;
   private yInRender: number;
-  private world: World;
+  private world: b2WorldId;
   private parent: Container;
   private ground?: Container;
-  private groundRigidBody?: RigidBody;
+  private groundRigidBody?: b2BodyId;
 
-  constructor(screen: Rectangle, world: World, parent: Container) {
+  constructor(screen: Rectangle, world: b2WorldId, parent: Container) {
     this.widthInRender = screen.width;
     this.heightInRender = 20;
     this.xInRender = 0;
@@ -57,28 +63,32 @@ export class Ground {
   }
 
   private initPhysics() {
-    const rigidBodyDesc = RigidBodyDesc.fixed()
-      .setTranslation(
-        toPhysics(this.xInRender + this.widthInRender / 2),
-        toPhysics(this.yInRender + this.heightInRender / 2),
-      )
-      .setGravityScale(0);
-    const rigidBody = this.world.createRigidBody(rigidBodyDesc);
+    const bodyDef = b2DefaultBodyDef();
+    bodyDef.type = b2BodyType.b2_staticBody;
+    bodyDef.position = new b2Vec2(
+      toPhysics(this.xInRender + this.widthInRender / 2),
+      toPhysics(this.yInRender + this.heightInRender / 2),
+    );
+    const bodyId = b2CreateBody(this.world, bodyDef);
+    this.groundRigidBody = bodyId;
 
-    this.groundRigidBody = rigidBody;
-
-    const groundColliderDesc = ColliderDesc.cuboid(
-      toPhysics(this.widthInRender / 2),
-      toPhysics(this.heightInRender / 2),
-    )
-      .setFriction(0)
-      .setRestitution(0);
-    this.world.createCollider(groundColliderDesc, rigidBody);
+    const shapeDef = b2DefaultShapeDef();
+    shapeDef.density = 1;
+    shapeDef.friction = 0;
+    shapeDef.restitution = 0;
+    b2CreatePolygonShape(
+      bodyId,
+      shapeDef,
+      b2MakeBox(
+        toPhysics(this.widthInRender / 2),
+        toPhysics(this.heightInRender / 2),
+      ),
+    );
   }
 
   update() {
     if (this.groundRigidBody && this.ground) {
-      const pos = this.groundRigidBody.translation();
+      const pos = b2Body_GetPosition(this.groundRigidBody);
       this.xInRender = toRender(pos.x) - this.widthInRender / 2;
       this.yInRender = toRender(pos.y) - this.heightInRender / 2;
       this.updateRender();

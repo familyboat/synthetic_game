@@ -6,6 +6,7 @@
     "words": [
         "dimforge",
         "gsap",
+        "phaserjs",
         "pixi"
     ],
     "ignoreWords": [],

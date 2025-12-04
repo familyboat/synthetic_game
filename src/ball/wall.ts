@@ -1,6 +1,15 @@
-import { ColliderDesc, type World } from "@dimforge/rapier2d-compat";
 import { Graphics, type Container, type Rectangle } from "pixi.js";
 import { toPhysics } from "./utils";
+import {
+  b2BodyType,
+  b2CreateBody,
+  b2CreatePolygonShape,
+  b2DefaultBodyDef,
+  b2DefaultShapeDef,
+  b2MakeBox,
+  b2Vec2,
+  type b2WorldId,
+} from "phaser-box2d";
 
 /**
  * 强，长方形，静态刚体；
@@ -13,12 +22,12 @@ export class Wall {
   private heightInRender: number;
   private xInRender: number;
   private yInRender: number;
-  private world: World;
+  private world: b2WorldId;
   private parent: Container;
 
   constructor(
     screen: Rectangle,
-    world: World,
+    world: b2WorldId,
     parent: Container,
     xInRender: number,
     yInRender: number,
@@ -51,15 +60,25 @@ export class Wall {
   }
 
   private initPhysics() {
-    const groundColliderDesc = ColliderDesc.cuboid(
-      toPhysics(this.widthInRender / 2),
-      toPhysics(this.heightInRender / 2),
-    )
-      .setFriction(0)
-      .setRestitution(0);
-    this.world.createCollider(groundColliderDesc).setTranslation({
-      x: toPhysics(this.xInRender + this.widthInRender / 2),
-      y: toPhysics(this.yInRender + this.heightInRender / 2),
-    });
+    const bodyDef = b2DefaultBodyDef();
+    bodyDef.type = b2BodyType.b2_staticBody;
+    bodyDef.position = new b2Vec2(
+      toPhysics(this.xInRender + this.widthInRender / 2),
+      toPhysics(this.yInRender + this.heightInRender / 2),
+    );
+    const bodyId = b2CreateBody(this.world, bodyDef);
+
+    const shapeDef = b2DefaultShapeDef();
+    shapeDef.density = 1;
+    shapeDef.friction = 0;
+    shapeDef.restitution = 0;
+    b2CreatePolygonShape(
+      bodyId,
+      shapeDef,
+      b2MakeBox(
+        toPhysics(this.widthInRender / 2),
+        toPhysics(this.heightInRender / 2),
+      ),
+    );
   }
 }

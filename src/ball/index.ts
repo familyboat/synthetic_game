@@ -1,13 +1,24 @@
-import RAPIER, { EventQueue } from "@dimforge/rapier2d-compat";
 import { Application } from "pixi.js";
 import { Ground } from "./ground";
-import { BallManager } from "./ball";
+import { BallManager, type BallUserData } from "./ball";
 import { Wall } from "./wall";
+import {
+  b2CreateWorld,
+  b2CreateWorldArray,
+  b2DefaultWorldDef,
+  b2Shape_GetBody,
+  b2Shape_GetUserData,
+  b2ShapeId,
+  b2Vec2,
+  b2World_GetContactEvents,
+  b2World_Step,
+} from "phaser-box2d";
 
 export async function runSyntheticBallGame() {
-  const gravity = { x: 0.0, y: 9.81 };
-  const world = new RAPIER.World(gravity);
-  const eventqueue = new EventQueue(true);
+  b2CreateWorldArray();
+  const worldDef = b2DefaultWorldDef();
+  worldDef.gravity = new b2Vec2(0, 9.81);
+  const worldId = b2CreateWorld(worldDef);
 
   const app = new Application();
   await app.init({
@@ -20,15 +31,15 @@ export async function runSyntheticBallGame() {
 
   document.body.appendChild(app.canvas);
 
-  const ground = new Ground(app.screen, world, app.stage);
+  const ground = new Ground(app.screen, worldId, app.stage);
   ground.init();
 
-  const leftWall = new Wall(app.screen, world, app.stage, 0, 0);
+  const leftWall = new Wall(app.screen, worldId, app.stage, 0, 0);
   leftWall.init();
 
   const rightWall = new Wall(
     app.screen,
-    world,
+    worldId,
     app.stage,
     app.screen.width - 20,
     0,
@@ -36,7 +47,7 @@ export async function runSyntheticBallGame() {
   rightWall.init();
 
   function makeBall() {
-    BallManager.makeNewBall(app.screen, world, app.stage);
+    BallManager.makeNewBall(app.screen, worldId, app.stage);
   }
 
   setInterval(() => {
@@ -44,12 +55,17 @@ export async function runSyntheticBallGame() {
   }, 1000);
 
   app.ticker.add(() => {
-    world.step(eventqueue);
-    eventqueue.drainCollisionEvents((handle1, handle2) => {
-      const aCollider = world.getCollider(handle1);
-      const bCollider = world.getCollider(handle2);
-      const aUserData = aCollider?.data;
-      const bUserData = bCollider?.data;
+    b2World_Step(worldId, 1 / 60, 2);
+
+    const contactEvents = b2World_GetContactEvents(worldId);
+    for (const event of contactEvents.beginEvents) {
+      const aUserData = b2Shape_GetUserData(
+        event.shapeIdA,
+      ) as unknown as BallUserData;
+      const bUserData = b2Shape_GetUserData(
+        event.shapeIdB,
+      ) as unknown as BallUserData;
+
       if (aUserData?.isBall && bUserData?.isBall) {
         const aBall = BallManager.getBall(aUserData.uuid);
         const bBall = BallManager.getBall(bUserData.uuid);
@@ -67,7 +83,7 @@ export async function runSyntheticBallGame() {
           aBall.translate(bBall);
         }
       }
-    });
+    }
 
     BallManager.update();
     ground.update();
