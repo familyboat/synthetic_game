@@ -1,11 +1,6 @@
-import {
-  ColliderDesc,
-  RigidBody,
-  RigidBodyDesc,
-  type World,
-} from "@dimforge/rapier2d-compat";
 import { Graphics, type Container, type Rectangle } from "pixi.js";
 import { toPhysics, toRender } from "./utils";
+import { Bodies, Composite, type Body, type World } from "matter-js";
 
 /**
  * 草地，长方形，静态刚体；
@@ -21,7 +16,7 @@ export class Ground {
   private world: World;
   private parent: Container;
   private ground?: Container;
-  private groundRigidBody?: RigidBody;
+  private groundRigidBody?: Body;
 
   constructor(screen: Rectangle, world: World, parent: Container) {
     this.widthInRender = screen.width;
@@ -57,28 +52,26 @@ export class Ground {
   }
 
   private initPhysics() {
-    const rigidBodyDesc = RigidBodyDesc.fixed()
-      .setTranslation(
-        toPhysics(this.xInRender + this.widthInRender / 2),
-        toPhysics(this.yInRender + this.heightInRender / 2),
-      )
-      .setGravityScale(0);
-    const rigidBody = this.world.createRigidBody(rigidBodyDesc);
-
+    const rigidBody = Bodies.rectangle(
+      toPhysics(this.xInRender + this.widthInRender / 2),
+      toPhysics(this.yInRender + this.heightInRender / 2),
+      toPhysics(this.widthInRender),
+      toPhysics(this.heightInRender),
+      {
+        friction: 0,
+        restitution: 0,
+        isStatic: true,
+        slop: 0,
+      },
+    );
     this.groundRigidBody = rigidBody;
 
-    const groundColliderDesc = ColliderDesc.cuboid(
-      toPhysics(this.widthInRender / 2),
-      toPhysics(this.heightInRender / 2),
-    )
-      .setFriction(0)
-      .setRestitution(0);
-    this.world.createCollider(groundColliderDesc, rigidBody);
+    Composite.add(this.world, [rigidBody]);
   }
 
   update() {
     if (this.groundRigidBody && this.ground) {
-      const pos = this.groundRigidBody.translation();
+      const pos = this.groundRigidBody.position;
       this.xInRender = toRender(pos.x) - this.widthInRender / 2;
       this.yInRender = toRender(pos.y) - this.heightInRender / 2;
       this.updateRender();

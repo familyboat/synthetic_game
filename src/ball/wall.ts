@@ -1,6 +1,6 @@
-import { ColliderDesc, type World } from "@dimforge/rapier2d-compat";
 import { Graphics, type Container, type Rectangle } from "pixi.js";
 import { toPhysics } from "./utils";
+import { Bodies, Composite, type World } from "matter-js";
 
 /**
  * 强，长方形，静态刚体；
@@ -51,15 +51,19 @@ export class Wall {
   }
 
   private initPhysics() {
-    const groundColliderDesc = ColliderDesc.cuboid(
-      toPhysics(this.widthInRender / 2),
-      toPhysics(this.heightInRender / 2),
-    )
-      .setFriction(0)
-      .setRestitution(0);
-    this.world.createCollider(groundColliderDesc).setTranslation({
-      x: toPhysics(this.xInRender + this.widthInRender / 2),
-      y: toPhysics(this.yInRender + this.heightInRender / 2),
-    });
+    const groundBody = Bodies.rectangle(
+      toPhysics(this.xInRender + this.widthInRender / 2),
+      toPhysics(this.yInRender + this.heightInRender / 2),
+      toPhysics(this.widthInRender),
+      toPhysics(this.heightInRender),
+      {
+        friction: 0,
+        restitution: 0,
+        isStatic: true,
+        slop: 0,
+      },
+    );
+
+    Composite.add(this.world, [groundBody]);
   }
 }
